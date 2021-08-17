@@ -98,6 +98,7 @@ type: generic
 stringData:
   common: |
   defaults: {{- toYaml .defaults | nindent 4 }}
+  {{ if not (eq .package.revision "") }}{{- "revision:" | indent 4 }}{{ .package.revision | indent 1}}{{- end }}
   overlays: |
     {{- toYaml .package.values | nindent 4 }}
 {{- end -}}

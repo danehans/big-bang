@@ -1,18 +1,24 @@
-{{- if and (not .Values.offline) .Values.istiooperator.enabled }}
+{{- range $operator := .Values.istiooperators }}
+{{- if and (not $.Values.offline) $operator.enabled }}
+---
 apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: GitRepository
 metadata:
-  name: istio-operator
-  namespace: {{ .Release.Namespace }}
+  name: istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    app.kubernetes.io/name: istio-operator
+    app.kubernetes.io/name: istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}
     app.kubernetes.io/component: "core"
-    {{- include "commonLabels" . | nindent 4}}
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/version: {{ $.Chart.Version }}
+    app.kubernetes.io/part-of: bigbang
+    app.kubernetes.io/managed-by: flux
 spec:
-  interval: {{ .Values.flux.interval }}
-  url: {{ .Values.istiooperator.git.repo }}
+  interval: {{ $.Values.flux.interval }}
+  url: {{ $operator.git.repo }}
   ref:
-    {{- include "validRef" .Values.istiooperator.git | nindent 4 }}
-  {{ include "gitIgnore" . }}
-  {{- include "gitCreds" . | nindent 2 }}
+    {{- include "validRef" $operator.git | nindent 4 }}
+  {{ include "gitIgnore" $ }}
+  {{- include "gitCreds" $ | nindent 2 }}
+{{- end }}
 {{- end }}

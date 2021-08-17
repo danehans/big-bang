@@ -1,12 +1,19 @@
-{{- if .Values.istiooperator.enabled }}
-{{- include "values-secret" (dict "root" $ "package" .Values.istiooperator "name" "istio-operator" "defaults" (include "bigbang.defaults.istiooperator" .)) }}
+{{- range $operator := .Values.istiooperators }}
+---
+{{- if $operator.enabled }}
+{{- $opName := "istio-operator" -}}
+{{- if not (eq $operator.revision "") }}
+{{- $opName = print $opName "-" $operator.revision -}}
+{{- end }}
+{{- include "values-secret" (dict "root" $ "package" $operator "name" $opName "defaults" (include "bigbang.defaults.istiooperator" $)) }}
+{{- end }}
 {{- end }}
 
 {{- define "bigbang.defaults.istiooperator" -}}
 createNamespace: false
 
 imagePullSecrets:
-  - private-registry
+  - name: private-registry
 
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}

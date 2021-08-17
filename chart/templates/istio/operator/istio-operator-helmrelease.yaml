@@ -1,45 +1,48 @@
-{{- $fluxSettingsIstioOperator := merge .Values.istiooperator.flux .Values.flux -}}
-{{- if .Values.istiooperator.enabled }}
+{{- range $operator := .Values.istiooperators }}
+---
+{{- if $operator.enabled }}
+{{- $fluxSettingsIstioOperator := $.Values.flux -}}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: istio-operator
-  namespace: {{ .Release.Namespace }}
+  name: istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}
+  namespace: {{ $.Release.Namespace }}
   labels:
-    app.kubernetes.io/name: istio-operator
-    app.kubernetes.io/component: "core"
-    {{- include "commonLabels" . | nindent 4}}
+    app.kubernetes.io/name: istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}
+    app.kubernetes.io/component: core
+    {{- include "commonLabels" $ | nindent 4}}
 spec:
   targetNamespace: istio-operator
   chart:
     spec:
-      chart: {{ .Values.istiooperator.git.path }}
+      chart: {{ $operator.git.path }}
       interval: 5m
       sourceRef:
         kind: GitRepository
-        name: istio-operator
-        namespace: {{ .Release.Namespace }}
+        name: istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}
+        namespace: {{ $.Release.Namespace }}
 
   {{- toYaml $fluxSettingsIstioOperator | nindent 2 }}
 
-  {{- if .Values.istiooperator.postRenderers }}
+  {{- if $operator.postRenderers }}
   postRenderers:
-  {{ toYaml .Values.istiooperator.postRenderers | nindent 4 }}
+  {{ toYaml $operator.postRenderers | nindent 4 }}
   {{- end }}
   valuesFrom:
-    - name: {{ .Release.Name }}-istio-operator-values
+    - name: {{ $.Release.Name }}-istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}-values
       kind: Secret
       valuesKey: "common"
-    - name: {{ .Release.Name }}-istio-operator-values
+    - name: {{ $.Release.Name }}-istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}-values
       kind: Secret
       valuesKey: "defaults"
-    - name: {{ .Release.Name }}-istio-operator-values
+    - name: {{ $.Release.Name }}-istio-operator{{- if not (eq $operator.revision "") }}-{{ $operator.revision }}{{- end }}-values
       kind: Secret
       valuesKey: "overlays"
 
-  {{- if .Values.gatekeeper.enabled }}
+  {{- if $.Values.gatekeeper.enabled }}
   dependsOn:
     - name: gatekeeper
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ $.Release.Namespace }}
   {{- end }}
+{{- end }}
 {{- end }}
