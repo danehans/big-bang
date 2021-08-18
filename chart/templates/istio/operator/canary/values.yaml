@@ -1,0 +1,19 @@
+{{- if hasKey .Values.istiooperator "canary" }}
+{{- if hasKey .Values.istiooperator.canary "revision" }}
+{{- $name := print "istio-operator-" .Values.istiooperator.canary.revision -}}
+{{- include "values-secret" (dict "root" $ "package" .Values.istiooperator.canary "name" $name "defaults" (include "bigbang.defaults.istiooperator.canary" .)) }}
+{{- end }}
+{{- end }}
+
+{{- define "bigbang.defaults.istiooperator.canary" -}}
+createNamespace: false
+
+revision: {{ .Values.istiooperator.canary.revision }}
+
+imagePullSecrets:
+  - private-registry
+
+networkPolicies:
+  enabled: {{ .Values.networkPolicies.enabled }}
+  controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
+{{- end -}}

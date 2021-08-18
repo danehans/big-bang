@@ -1,10 +1,16 @@
 {{- if .Values.istiooperator.enabled }}
-{{- include "values-secret" (dict "root" $ "package" .Values.istiooperator "name" "istio-operator" "defaults" (include "bigbang.defaults.istiooperator" .)) }}
+{{- $name := "istio-operator" -}}
+{{- if hasKey .Values.istiooperator "revision" }}
+{{- $name = print $name "-" .Values.istiooperator.revision -}}
+{{- end }}
+{{- include "values-secret" (dict "root" $ "package" .Values.istiooperator "name" $name "defaults" (include "bigbang.defaults.istiooperator" .)) }}
 {{- end }}
 
 {{- define "bigbang.defaults.istiooperator" -}}
 createNamespace: false
-
+{{ if hasKey .Values.istiooperator "revision" }}
+revision: {{ .Values.istiooperator.revision }}
+{{ end }}
 imagePullSecrets:
   - private-registry
 
