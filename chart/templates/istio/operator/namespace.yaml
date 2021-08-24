@@ -1,4 +1,11 @@
-{{- if .Values.istiooperator.enabled }}
+{{ $enabled := false }}
+{{- range $values := .Values.istiooperators }}
+{{ if and ($values.enabled) (eq $enabled false) }}
+{{ $enabled = true }}
+{{- end }}
+{{- end }}
+
+{{- if $enabled }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -8,5 +15,5 @@ metadata:
     istio-injection: disabled
     app.kubernetes.io/name: istio-operator
     app.kubernetes.io/component: "core"
-    {{- include "commonLabels" . | nindent 4}}
+    {{- include "commonLabels" $ | nindent 4}}
 {{- end }}

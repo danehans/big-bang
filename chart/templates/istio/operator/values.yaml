@@ -1,14 +1,31 @@
-{{- if .Values.istiooperator.enabled }}
-{{- include "values-secret" (dict "root" $ "package" .Values.istiooperator "name" "istio-operator" "defaults" (include "bigbang.defaults.istiooperator" .)) }}
+{{- if .Values.istiooperator }}
+{{- required "`istiooperator` value has been deprecated.  Please use the new format in the `istiooperators` value." "" }}
+{{- end }}
+
+{{- range $name, $values := .Values.istiooperators }}
+{{- if $values.enabled }}
+---
+{{- if eq $name "default" }}
+{{- $name = "istio-operator" }}
+{{- else if hasKey $values "revision" }}
+{{- $name = printf "istio-operator-%s" $values.revision }}
+{{- else }}
+{{- $name = print "istio-operator-%s" $name }}
+{{- end }}
+{{- $defaults := include "bigbang.defaults.istiooperator" (dict "root" $ "package" $values) }}
+{{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
+{{- end }}
 {{- end }}
 
 {{- define "bigbang.defaults.istiooperator" -}}
 createNamespace: false
-
+{{ if hasKey .package "revision" }}
+revision: {{ .package.revision }}
+{{ end }}
 imagePullSecrets:
   - private-registry
 
 networkPolicies:
-  enabled: {{ .Values.networkPolicies.enabled }}
-  controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
+  enabled: {{ .root.Values.networkPolicies.enabled }}
+  controlPlaneCidr: {{ .root.Values.networkPolicies.controlPlaneCidr }}
 {{- end -}}

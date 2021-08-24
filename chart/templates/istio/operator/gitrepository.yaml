@@ -1,18 +1,28 @@
-{{- if and (not .Values.offline) .Values.istiooperator.enabled }}
+{{- range $name, $values := .Values.istiooperators }}
+{{- if and (not $.Values.offline) $values.enabled }}
+---
+{{- if eq $name "default" }}
+{{- $name = "istio-operator" }}
+{{- else if hasKey $values "revision" }}
+{{- $name = printf "istio-operator-%s" $values.revision }}
+{{- else }}
+{{- $name = printf "istio-operator-%s" $name }}
+{{- end }}
 apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: GitRepository
 metadata:
-  name: istio-operator
-  namespace: {{ .Release.Namespace }}
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
   labels:
     app.kubernetes.io/name: istio-operator
     app.kubernetes.io/component: "core"
-    {{- include "commonLabels" . | nindent 4}}
+    {{- include "commonLabels" $ | nindent 4}}
 spec:
-  interval: {{ .Values.flux.interval }}
-  url: {{ .Values.istiooperator.git.repo }}
+  interval: {{ $.Values.flux.interval }}
+  url: {{ $values.git.repo }}
   ref:
-    {{- include "validRef" .Values.istiooperator.git | nindent 4 }}
-  {{ include "gitIgnore" . }}
-  {{- include "gitCreds" . | nindent 2 }}
+    {{- include "validRef" $values.git | nindent 4 }}
+  {{ include "gitIgnore" $ }}
+  {{- include "gitCreds" $ | nindent 2 }}
+{{- end }}
 {{- end }}
