@@ -3,11 +3,14 @@
 {{- end }}
 
 {{- define "bigbang.defaults.jaeger" -}}
+{{ $istioEnabled := false }}
+{{- range $values := .Values.istios }}{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end -}}
 imagePullSecrets:
   - name: private-registry
 hostname: {{ .Values.hostname }}
 istio:
-  enabled: {{ .Values.istio.enabled }}
+  enabled: {{ $istioEnabled }}
   jaeger:
     gateways:
     - istio-system/{{ default "public" .Values.jaeger.ingress.gateway }}
@@ -30,7 +33,9 @@ networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
   ingressLabels:
-    {{- $gateway := default "public" .Values.jaeger.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
+    {{- range $name, $values := .Values.istios }}
+    {{- $gateway := default "public" $.Values.kiali.ingress.gateway }}
+    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
+    {{- end -}}
 {{- end -}}

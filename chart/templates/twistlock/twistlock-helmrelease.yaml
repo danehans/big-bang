@@ -1,5 +1,9 @@
 {{- $fluxSettingsTwistlock := merge .Values.twistlock.flux .Values.flux -}}
 {{- if .Values.twistlock.enabled }}
+{{ $istioEnabled := false }}
+{{- range $values := .Values.istios }}
+{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
@@ -38,13 +42,13 @@ spec:
       valuesKey: "overlays"
 
   # TODO: DRY this up
-  {{- if or .Values.gatekeeper.enabled .Values.istio.enabled }}
+  {{- if or .Values.gatekeeper.enabled $istioEnabled }}
   dependsOn:
     {{- if .Values.gatekeeper.enabled }}
     - name: gatekeeper
       namespace: {{ .Release.Namespace }}
     {{- end }}
-    {{- if .Values.istio.enabled }}
+    {{- if $istioEnabled }}
     - name: istio
       namespace: {{ .Release.Namespace }}
     {{- end }}

@@ -1,48 +1,63 @@
-{{- $fluxSettingsIstioCp := merge .Values.istio.flux .Values.flux -}}
-{{- if .Values.istio.enabled }}
+{{- range $name, $values := .Values.istios }}
+{{- if $values.enabled }}
+{{- $repoName := "istio-controlplane" }}
+{{- if eq $name "default" }}
+{{- $name = "istio" }}
+{{- else if hasKey $values "revision" }}
+{{- $name = printf "istio-%s" $values.revision }}
+{{- $repoName = printf "%s-%s" $repoName $values.revision }}
+{{- else }}
+{{- $repoName = printf "%s-%s" $repoName $name }}
+{{- $name = printf "istio-%s" $name }}
+{{- end }}
+
+{{- $fluxSettingsIstioCp := $.Values.flux -}}
+{{- if hasKey $values "flux" }}{{- $fluxSettingsIstioCp = merge $.Values.flux $values.flux -}}{{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
-  name: istio
-  namespace: {{ .Release.Namespace }}
+  name: {{ $name }}
+  namespace: {{ $.Release.Namespace }}
   labels:
     app.kubernetes.io/name: istio-controlplane
     app.kubernetes.io/component: "core"
-    {{- include "commonLabels" . | nindent 4}}
+    {{- include "commonLabels" $ | nindent 4}}
 spec:
   targetNamespace: istio-system
   chart:
     spec:
-      chart: {{ .Values.istio.git.path }}
+      chart: {{ $values.git.path }}
       interval: 5m
       sourceRef:
         kind: GitRepository
-        name: istio-controlplane
-        namespace: {{ .Release.Namespace }}
+        name: {{ $repoName }}
+        namespace: {{ $.Release.Namespace }}
 
   {{- toYaml $fluxSettingsIstioCp | nindent 2 }}
 
-  {{- if .Values.istio.postRenderers }}
+  {{- if $values.postRenderers }}
   postRenderers:
-  {{ toYaml .Values.istio.postRenderers | nindent 4 }}
+  {{ toYaml $values.postRenderers | nindent 4 }}
   {{- end }}
   valuesFrom:
-    - name: {{ .Release.Name }}-istio-values
+    - name: {{ $.Release.Name }}-{{ $name }}-values
       kind: Secret
       valuesKey: "common"
-    - name: {{ .Release.Name }}-istio-values
+    - name: {{ $.Release.Name }}-{{ $name }}-values
       kind: Secret
       valuesKey: "defaults"
-    - name: {{ .Release.Name }}-istio-values
+    - name: {{ $.Release.Name }}-{{ $name }}-values
       kind: Secret
       valuesKey: "overlays"
 
   dependsOn:
-    - name: istio-operator
-      namespace: {{ .Release.Namespace }}
+    - name: istio-operator{{- if hasKey $values "revision" }}-{{ $values.revision }}{{- end }}
+      namespace: {{ $.Release.Namespace }}
 
-    {{- if .Values.gatekeeper.enabled }}
+    {{- if $.Values.gatekeeper.enabled }}
     - name: gatekeeper
-      namespace: {{ .Release.Namespace }}
+      namespace: {{ $.Release.Namespace }}
     {{- end }}
+---
+{{- end }}
 {{- end }}

@@ -3,6 +3,9 @@
 {{- end }}
 
 {{- define "bigbang.defaults.keycloak" -}}
+{{ $istioEnabled := false }}
+{{- range $values := .Values.istios }}{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end -}}
 replicas: 2
 
 imagePullSecrets:
@@ -13,7 +16,7 @@ hostname: {{ .Values.hostname }}
 openshift: {{ .Values.openshift }}
 
 istio:
-  enabled: {{ .Values.istio.enabled }}
+  enabled: {{ $istioEnabled }}
   keycloak:
     enabled: true
     gateways:
@@ -23,9 +26,11 @@ networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
   ingressLabels:
-    {{- $gateway := default "passthrough" .Values.addons.keycloak.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
+    {{- range $name, $values := .Values.istios }}
+    {{- $gateway := default "public" $.Values.kiali.ingress.gateway }}
+    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
+    {{- end -}}
 
 monitoring:
   enabled: {{ .Values.monitoring.enabled }}
