@@ -1,12 +1,6 @@
 {{- range $name, $values := .Values.istios }}
 {{- if $values.enabled }}
-{{- if eq $name "default" }}
-{{- $name = "istio" }}
-{{- else if hasKey $values "revision" }}
-{{- $name = printf "istio-%s" $values.revision }}
-{{- else }}
-{{- $name = printf "istio-%s" $name }}
-{{- end }}
+{{- if eq $name "default" }}{{- $name = "istio" }}{{- else }}{{- $name = printf "istio-%s" $name }}{{- end }}
 {{- $defaults := include "bigbang.defaults.istio" (dict "root" $ "istioName" $name "package" $values) }}
 {{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
 ---
