@@ -5,13 +5,7 @@
 {{- range $name, $values := .Values.istiooperators }}
 {{- if $values.enabled }}
 ---
-{{- if eq $name "default" }}
-{{- $name = "istio-operator" }}
-{{- else if hasKey $values "revision" }}
-{{- $name = printf "istio-operator-%s" $values.revision }}
-{{- else }}
-{{- $name = print "istio-operator-%s" $name }}
-{{- end }}
+{{- if eq $name "default" }}{{- $name = "istio-operator" }}{{- else }}{{- $name = printf "istio-operator-%s" $name }}{{- end }}
 {{- $defaults := include "bigbang.defaults.istiooperator" (dict "root" $ "package" $values) }}
 {{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
 {{- end }}

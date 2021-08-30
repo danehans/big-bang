@@ -1,13 +1,7 @@
 {{- range $name, $values := .Values.istiooperators }}
 {{- if and (not $.Values.offline) $values.enabled }}
 ---
-{{- if eq $name "default" }}
-{{- $name = "istio-operator" }}
-{{- else if hasKey $values "revision" }}
-{{- $name = printf "istio-operator-%s" $values.revision }}
-{{- else }}
-{{- $name = printf "istio-operator-%s" $name }}
-{{- end }}
+{{- if eq $name "default" }}{{- $name = "istio-operator" }}{{- else }}{{- $name = printf "istio-operator-%s" $name }}{{- end }}
 apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: GitRepository
 metadata:
