@@ -1,14 +1,48 @@
+{{- if and (.Values.istiooperator.enabled) (.Values.istiooperators.default.enabled) }}
+{{- fail "Only one of '.Values.istiooperator' or `.Values.istiooperators.default` may be enabled." }}
+{{- end }}
+
 {{- if .Values.istiooperator.enabled }}
 {{- include "values-secret" (dict "root" $ "package" .Values.istiooperator "name" "istio-operator" "defaults" (include "bigbang.defaults.istiooperator" .)) }}
 {{- end }}
 
 {{- define "bigbang.defaults.istiooperator" -}}
 createNamespace: false
-
+{{ if hasKey .Values.istiooperator "revision" }}
+revision: {{ .Values.istiooperator.revision }}
+{{ end }}
 imagePullSecrets:
   - private-registry
 
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
+{{- end -}}
+
+{{- range $name, $values := .Values.istiooperators }}
+{{- if $values.enabled }}
+---
+{{- if eq $name "default" }}
+{{- $name = "istio-operator" }}
+{{- else if hasKey $values "revision" }}
+{{- $name = printf "istio-operator-%s" $values.revision }}
+{{- else }}
+{{- $name = print "istio-operator-%s" $name }}
+{{- end }}
+{{- $defaults := include "bigbang.defaults.istiooperators" (dict "root" $ "package" $values) }}
+{{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
+{{- end }}
+{{- end }}
+
+{{- define "bigbang.defaults.istiooperators" -}}
+createNamespace: false
+{{ if hasKey .package "revision" }}
+revision: {{ .package.revision }}
+{{ end }}
+imagePullSecrets:
+  - private-registry
+
+networkPolicies:
+  enabled: {{ .root.Values.networkPolicies.enabled }}
+  controlPlaneCidr: {{ .root.Values.networkPolicies.controlPlaneCidr }}
 {{- end -}}
