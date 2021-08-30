@@ -167,10 +167,27 @@ istio:
   # -- Post Renderers.  See docs/postrenders.md
   postRenderers: []
 
+istiooperator:
+  # -- Toggle deployment of Istio Operator.
+  enabled: false
+  git:
+    repo: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-operator.git
+    path: "./chart"
+    tag: "1.10.3-bb.0"
+
+  # -- Flux reconciliation overrides specifically for the Istio Operator Package
+  flux: {}
+
+  # -- Values to passthrough to the istio-operator chart: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-operator.git
+  values: {}
+
+  # -- Post Renderers.  See docs/postrenders.md
+  postRenderers: []
+
 istiooperators:
   default:
     # -- Toggle deployment of Istio Operator.
-    enabled: false
+    enabled: true
     git:
       repo: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-operator.git
       path: "./chart"

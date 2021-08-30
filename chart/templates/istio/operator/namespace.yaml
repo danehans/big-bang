@@ -1,5 +1,8 @@
 {{ $enabled := false }}
-{{- range $values := .Values.istiooperators }}{{ if and ($values.enabled) (eq $enabled false) }}{{ $enabled = true }}{{- end }}
+{{- if .Values.istiooperator.enabled }}{{ $enabled = true }}{{- else }}
+{{- range $values := .Values.istiooperators }}
+{{ if and ($values.enabled) (eq $enabled false) }}{{ $enabled = true }}{{- end }}
+{{- end }}
 {{- end }}
 
 {{- if $enabled }}
