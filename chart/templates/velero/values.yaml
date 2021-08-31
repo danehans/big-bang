@@ -4,26 +4,29 @@
 
 {{- define "bigbang.defaults.velero" -}}
 {{ $istioEnabled := false }}
-{{- range $values := .Values.istios }}{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end -}}
-hostname: {{ .root.Values.hostname }}
+{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
+{{- range $values := .Values.istios }}
+{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end }}
+{{- end }}
+hostname: {{ .Values.hostname }}
 
 istio:
   enabled: {{ $istioEnabled }}
 
 monitoring:
-  enabled: {{ .root.Values.monitoring.enabled }}
+  enabled: {{ .Values.monitoring.enabled }}
 
 networkPolicies:
-  enabled: {{ .root.Values.networkPolicies.enabled }}
-  controlPlaneCidr: {{ .root.Values.networkPolicies.controlPlaneCidr }}
+  enabled: {{ .Values.networkPolicies.enabled }}
+  controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
 
 imagePullSecrets:
 - name: private-registry
 
-{{- if eq (len .root.Values.addons.velero.plugins) 0 }}{{- fail "At least one plugin in '.root.Values.addons.velero.plugins' required. Supported values: aws, azure, csi" }}{{- end }}
+{{- if eq (len .Values.addons.velero.plugins) 0 }}{{- fail "At least one plugin in '.Values.addons.velero.plugins' required. Supported values: aws, azure, csi" }}{{- end }}
 initContainers:
-{{- range .root.Values.addons.velero.plugins }}
+{{- range .Values.addons.velero.plugins }}
 {{- if eq . "aws" }}
   - name: velero-plugin-for-aws
     image: registry1.dso.mil/ironbank/opensource/velero/velero-plugin-for-aws:v1.2.0
