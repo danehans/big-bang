@@ -1,5 +1,62 @@
+{{- $fluxSettingsIstioCp := .Values.flux -}}
+{{- if .Values.istio.enabled }}
+{{- if hasKey .Values.istio "flux" }}{{- $fluxSettingsIstioCp = merge .Values.istio.flux .Values.flux -}}{{- end }}
+apiVersion: helm.toolkit.fluxcd.io/v2beta1
+kind: HelmRelease
+metadata:
+  name: istio
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: istio-controlplane
+    app.kubernetes.io/component: "core"
+    {{- include "commonLabels" . | nindent 4}}
+spec:
+  targetNamespace: istio-system
+  chart:
+    spec:
+      chart: {{ .Values.istio.git.path }}
+      interval: 5m
+      sourceRef:
+        kind: GitRepository
+        name: istio-controlplane
+        namespace: {{ .Release.Namespace }}
+
+  {{- toYaml $fluxSettingsIstioCp | nindent 2 }}
+
+  {{- if .Values.istio.postRenderers }}
+  postRenderers:
+  {{ toYaml .Values.istio.postRenderers | nindent 4 }}
+  {{- end }}
+  valuesFrom:
+    - name: {{ .Release.Name }}-istio-values
+      kind: Secret
+      valuesKey: "common"
+    - name: {{ .Release.Name }}-istio-values
+      kind: Secret
+      valuesKey: "defaults"
+    - name: {{ .Release.Name }}-istio-values
+      kind: Secret
+      valuesKey: "overlays"
+
+  dependsOn:
+    - name: istio-operator
+      namespace: {{ .Release.Namespace }}
+
+    {{- if .Values.gatekeeper.enabled }}
+    - name: gatekeeper
+      namespace: {{ .Release.Namespace }}
+    {{- end }}
+---
+{{- end }}
+
 {{- range $name, $values := .Values.istios }}
 {{- if $values.enabled }}
+{{- $opName := "istio-operator" }}
+{{- if ne $name "default" }}
+{{- range $n, $v := $.Values.istiooperators }}
+{{- if eq $n $name }}{{- $opName = printf "%s-%s" $opName $n }}{{- end }}
+{{- end }}
+{{- end }}
 {{- $repoName := "istio-controlplane" }}
 {{- if eq $name "default" }}{{- $name = "istio" }}{{- else }}{{- $repoName = printf "%s-%s" $repoName $name }}{{- $name = printf "istio-%s" $name }}{{- end }}
 {{- $fluxSettingsIstioCp := $.Values.flux -}}
@@ -42,7 +99,7 @@ spec:
       valuesKey: "overlays"
 
   dependsOn:
-    - name: istio-operator{{- if hasKey $values "revision" }}-{{ $values.revision }}{{- end }}
+    - name: {{ $opName }}
       namespace: {{ $.Release.Namespace }}
 
     {{- if $.Values.gatekeeper.enabled }}

@@ -1,13 +1,114 @@
+{{- if and (.Values.istio.enabled) (.Values.istios.default.enabled) }}
+{{- fail "Only one of '.Values.istio' or `.Values.istios.default` may be enabled." }}
+{{- end }}
+
+{{- if .Values.istio.enabled }}
+{{- if hasKey .Values.istio "revision" }}
+{{- if not (hasKey .Values.istiooperator "revision") }}
+{{- fail (printf "istio operator is missing revision %q." .Values.istio.revision) }}
+{{- end }}
+{{- if ne .Values.istio.revision .Values.istiooperator.revision }}
+{{- fail "Revision for istio operator and istio differ." }}
+{{- end }}
+{{- end }}
+{{- include "values-secret" (dict "root" $ "package" .Values.istio "name" "istio" "defaults" (include "bigbang.defaults.istio" .)) }}
+---
+{{- end }}
+
+{{- define "bigbang.defaults.istio" -}}
+hostname: {{ .Values.hostname }}
+
+tracing:
+  enabled:  {{ .Values.jaeger.enabled }}
+
+imagePullSecrets:
+  - private-registry
+
+openshift: {{ .Values.openshift }}
+
+monitoring:
+  enabled: {{ .Values.monitoring.enabled }}
+
+networkPolicies:
+  enabled: {{ .Values.networkPolicies.enabled }}
+  controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
+
+{{- if .Values.istio.ingressGateways }}
+ingressGateways:
+  istio-ingressgateway:
+    enabled: false
+{{- end }}
+
+{{- range $name, $values := .Values.istio.ingressGateways }}
+  {{ $name | nindent 2 }}:
+    {{- toYaml (merge (dict "k8s" $values.kubernetesResourceSpec) (fromYaml (include "istio.ingressgateway.k8s" $values))) | nindent 4 }}
+{{- end }}
+
+{{- if .Values.istio.gateways }}
+gateways:
+  main: null
+{{- end }}
+{{- range $name, $values := .Values.istio.gateways }}
+  {{ $name | nindent 2 }}:
+    selector:
+      app: {{ $values.ingressGateway }}
+    servers:
+    - hosts:
+      {{ tpl ($values.hosts | default (list) | toYaml) $ | nindent 8 }}
+      port:
+        name: https
+        number: 8443
+        protocol: HTTPS
+      tls:
+        credentialName: {{ $name }}-cert
+        mode: {{ dig "tls" "mode" "SIMPLE" $values }}
+{{- end }}
+{{- end }}
+
+{{- define "istio.ingressgateway.k8s" -}}
+k8s:
+  service:
+    type: {{ .type }}
+    {{- if .nodePortBase }}
+    ports: # Pulled from Istio gateway defaults (https://github.com/istio/istio/blob/master/manifests/charts/gateways/istio-ingress/values.yaml)
+    # Ports default to "protocol: TCP" and "targetPort = port"
+    # AWS ELB will by default perform health checks on the first port on this list. https://github.com/istio/istio/issues/12503
+    - port: 15021
+      name: status-port
+      nodePort: {{ add .nodePortBase 0 }}
+    - port: 80
+      targetPort: 8080
+      name: http2
+      nodePort: {{ add .nodePortBase 1 }}
+    - port: 443
+      targetPort: 8443
+      name: https
+      nodePort: {{ add .nodePortBase 2 }}
+    # SNI Routing port
+    - port: 15443
+      name: tls
+      nodePort: {{ add .nodePortBase 3 }}
+    {{- end }}
+{{- end }}
+
 {{- range $name, $values := .Values.istios }}
 {{- if $values.enabled }}
+{{- if hasKey $values "revision" }}
+{{- range $n, $v := $.Values.istiooperators }}
+{{- if eq $n $name }}
+{{- if not (hasKey $v "revision") }}{{- fail (printf "istio operator %q is missing revision %q." $n $values.revision) }}{{- end }}
+{{- if ne $v.revision $values.revision }}{{- fail (printf "Revision for istio operator %q and istio %q differ." $n $name) }}{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- if eq $name "default" }}{{- $name = "istio" }}{{- else }}{{- $name = printf "istio-%s" $name }}{{- end }}
-{{- $defaults := include "bigbang.defaults.istio" (dict "root" $ "istioName" $name "package" $values) }}
+{{- $defaults := include "bigbang.defaults.istios" (dict "root" $ "istioName" $name "package" $values) }}
 {{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
 ---
 {{- end }}
 {{- end }}
 
-{{- define "bigbang.defaults.istio" -}}
+{{- define "bigbang.defaults.istios" -}}
 hostname: {{ .root.Values.hostname }}
 {{ if hasKey .package "revision" }}
 revision: {{ .package.revision }}
@@ -33,7 +134,7 @@ ingressGateways:
 {{- if .package.ingressGateways }}
 {{- range $name, $values := .package.ingressGateways }}
   {{ $name | nindent 2 }}:
-    {{- toYaml (merge (dict "k8s" $values.kubernetesResourceSpec) (fromYaml (include "istio.ingressgateway.k8s" $values))) | nindent 4 }}
+    {{- toYaml (merge (dict "k8s" $values.kubernetesResourceSpec) (fromYaml (include "istios.ingressgateway.k8s" $values))) | nindent 4 }}
 {{- end }}
 {{- end }}
 
@@ -58,7 +159,7 @@ gateways:
 {{- end }}
 {{- end }}
 
-{{- define "istio.ingressgateway.k8s" -}}
+{{- define "istios.ingressgateway.k8s" -}}
 k8s:
   service:
     type: {{ .type }}

@@ -4,8 +4,11 @@
 
 {{- define "bigbang.defaults.argocd" -}}
 {{ $istioEnabled := false }}
-{{- range $values := .Values.istios }}{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end -}}
+{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
+{{- range $values := .Values.istios }}
+{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end }}
+{{- end }}
 hostname: {{ .Values.hostname }}
 
 createNamespace: false
@@ -40,8 +43,13 @@ networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
   ingressLabels:
+    {{- if .Values.istio.enabled }}
+    {{- $gateway := default "public" .Values.addons.argocd.ingress.gateway }}
+    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
+    {{- end }}
     {{- range $name, $values := .Values.istios }}
-    {{- $gateway := default "public" $.Values.kiali.ingress.gateway }}
+    {{- $gateway := default "public" $.Values.addons.argocd.ingress.gateway }}
     {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
     {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
     {{- end -}}

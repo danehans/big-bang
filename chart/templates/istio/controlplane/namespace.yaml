@@ -1,7 +1,7 @@
 {{ $enabled := false }}
+{{- if .Values.istio.enabled }}{{ $enabled = true }}{{- else }}
 {{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $enabled false) }}
-{{ $enabled = true }}
+{{ if and ($values.enabled) (eq $enabled false) }}{{ $enabled = true }}{{- end }}
 {{- end }}
 {{- end }}
 

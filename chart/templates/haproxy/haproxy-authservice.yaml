@@ -1,5 +1,8 @@
 {{ $istioEnabled := false }}
-{{- range $values := .Values.istios }}{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
+{{- range $values := .Values.istios }}
+{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- end }}
 {{- end }}
 {{- $fluxSettingsHaProxy := merge .Values.addons.haproxy.flux .Values.flux -}}
 {{- if and $istioEnabled .Values.monitoring.sso.enabled }}
