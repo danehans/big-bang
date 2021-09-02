@@ -1,0 +1,47 @@
+{{- if and .Values.istio.enabled .Values.istiogateway.enabled }}
+{{- fail "Only one of 'istio.enabled' and 'istiogateway.enabled' may be set to true." }}
+{{- end }}
+
+{{- if .Values.istio.enabled }}
+{{- range $values := .Values.istio.gateways }}
+{{- if (hasKey $values "namespace") }}
+{{- if $values.namespace "istio-system" }}{{- fail (printf "namespace %q is not a supported value." $values.namespace) }}{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.istiogateway.enabled }}
+{{- range $values := .Values.istiogateway.instances }}
+{{- if (hasKey $values "namespace") }}
+{{- if $values.namespace "istio-system" }}{{- fail (printf "namespace %q is not a supported value." $values.namespace) }}{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.istiogateway.enabled }}
+{{- $defaults := include "bigbang.defaults.istiogateway" (dict "root" $ "gateways" .Values.istiogateway.instances) }}
+{{- include "values-secret" (dict "root" $ "package" .Values.istiogateway "name" "istio-gateway" "defaults" $defaults) }}
+---
+{{- end }}
+
+{{- define "bigbang.defaults.istiogateway" -}}
+{{- if $.gateways }}
+gateways:
+  main: null
+{{- end }}
+{{- range $name, $values := $.gateways }}
+  {{ $name | nindent 2 }}:
+    selector:
+      app: {{ $values.ingressGateway }}
+    servers:
+    - hosts:
+      {{ tpl ($values.hosts | default (list) | toYaml) $.root | nindent 8 }}
+      port:
+        name: https
+        number: 8443
+        protocol: HTTPS
+      tls:
+        credentialName: {{ $name }}-cert
+        mode: {{ dig "tls" "mode" "SIMPLE" $values }}
+{{- end }}
+{{- end }}

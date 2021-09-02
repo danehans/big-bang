@@ -195,33 +195,35 @@ istios:
       #   # Node port will be assigned as follows: Port 15021 (Status) = nodePortBase, Port 80 = nodePortBase+1, Port 443 = nodePortBase+2, Port 15443 (SNI) = nodePortBase+3
       #   # Node port base should be in the range from 30000 to 32764
       #   nodePortBase: 32000  # Alternatively, the kubernetesResourceSpec can be used to configure all port parameters
-    gateways:
-      public:
-        ingressGateway: "public-ingressgateway"
-        hosts:
-          - "*.{{ .Values.hostname }}"
-        tls:
-          key: ""
-          cert: ""
-      # private:
-      #   ingressGateway: "private-ingressgateway"
-      #   hosts:
-      #   - "*.{{ .Values.hostname }}"
-      #   tls:
-      #     key: ""
-      #     cert: ""
-      # passthrough:
-      #   ingressGateway: "passthrough-ingressgateway"
-      #   hosts:
-      #   - "*.{{ .Values.hostname }}"
-      #   tls:
-      #     mode: "PASSTHROUGH"
     # -- Flux reconciliation overrides specifically for the Istio Package
     flux: {}
     # -- Values to passthrough to the istio-controlplane chart: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-controlplane.git
     values: {}
     # -- Post Renderers.  See docs/postrenders.md
     postRenderers: []
+
+istiogateway:
+  enabled: false
+  git:
+    # TODO: Updated to repo1 refs when repo is transferred.
+    repo: https://github.com/danehans/istio-gateway.git
+    path: "./chart"
+    tag: null
+    branch: main
+  instances:
+    public:
+      ingressGateway: "public-ingressgateway"
+      hosts:
+        - "*.{{ .Values.hostname }}"
+      tls:
+        key: ""
+        cert: ""
+  # -- Flux reconciliation overrides specifically for the Istio Package
+  flux: {}
+  # -- Values to passthrough to the istio-controlplane chart: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-controlplane.git
+  values: {}
+  # -- Post Renderers.  See docs/postrenders.md
+  postRenderers: []
 
 istiooperator:
   # -- Toggle deployment of Istio Operator.

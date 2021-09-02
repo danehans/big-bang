@@ -140,23 +140,6 @@ ingressGateways:
 
 gateways:
   main: null
-{{- if .package.gateways }}
-{{- range $name, $values := .package.gateways }}
-  {{ $name | nindent 2 }}:
-    selector:
-      app: {{ $values.ingressGateway }}
-    servers:
-    - hosts:
-      {{ tpl ($values.hosts | default (list) | toYaml) $.root | nindent 8 }}
-      port:
-        name: https
-        number: 8443
-        protocol: HTTPS
-      tls:
-        credentialName: {{ if not (eq $.istioName "istio") }}{{ $.istioName }}-{{- end }}{{ $name }}-cert
-        mode: {{ dig "tls" "mode" "SIMPLE" $values }}
-{{- end }}
-{{- end }}
 {{- end }}
 
 {{- define "istios.ingressgateway.k8s" -}}
