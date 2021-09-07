@@ -3,12 +3,19 @@
 {{- end }}
 
 {{- define "bigbang.defaults.argocd" -}}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- $gateways := dict }}
+{{- $addlVals := dict }}
+{{- if $istioEnabled }}
+{{- $_ := set $gateways "gateways" .Values.istio.gateways }}
+{{- $_ := set $addlVals "values" .Values.istio.values }}
 {{- end }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
+{{- if .Values.istiogateway.enabled }}
+{{- $_ := set $gateways "gateways" .Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}
+{{- end -}}
 hostname: {{ .Values.hostname }}
 
 createNamespace: false
@@ -42,17 +49,11 @@ monitoring:
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
-  ingressLabels:
-    {{- if .Values.istio.enabled }}
-    {{- $gateway := default "public" .Values.addons.argocd.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
-    {{- end }}
-    {{- range $name, $values := .Values.istios }}
-    {{- $gateway := default "public" $.Values.addons.argocd.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
-    {{- end -}}
+  {{ if $istioEnabled }}ingressLabels:
+    {{- $argoGw := default "public" .Values.addons.argocd.ingress.gateway }}
+    {{- $default := dict "app" (dig "gateways" $argoGw "ingressGateway" nil $gateways) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $argoGw "selector" $default $addlVals) | nindent 4 }}
+  {{- end }}
 
 {{- if .Values.addons.argocd.sso.enabled }}
 sso:

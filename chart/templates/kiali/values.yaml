@@ -3,11 +3,20 @@
 {{- end }}
 
 {{- define "bigbang.defaults.kiali" -}}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- $ingresses := dict }}
+{{- $gateways := dict }}
+{{- $addlVals := dict }}
+{{- if $istioEnabled }}
+{{- $_ := set $ingresses "ingressGateways" .Values.istio.ingressGateways }}
+{{- $_ := set $gateways "gateways" .Values.istio.gateways }}
+{{- $_ := set $addlVals "values" .Values.istio.values }}
 {{- end }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- $_ := set $ingresses "ingressGateways" $values.ingressGateways }}{{- end }}
+{{- end }}
+{{- if .Values.istiogateway.enabled }}
+{{- $_ := set $gateways "gateways" .Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}
 {{- end }}
 hostname: {{ .Values.hostname }}
 
@@ -68,19 +77,15 @@ cr:
             - app_label: istiod
               is_core: true
               is_proxy: false
-            {{- range $istioName, $istioValues := .Values.istios }}
-            {{- if $istioValues.enabled }}
-            {{- range $name, $values := $istioValues.ingressGateways }}
+            {{- range $name, $values := $ingresses }}
             - app_label: {{ $name }}
               is_core: true
               is_proxy: true
             {{- end }}
-            {{- range $name, $values := $istioValues.values.ingressGateways }}
+            {{- range $name, $values := $addlVals.ingressGateways }}
             - app_label: {{ $name }}
               is_core: true
               is_proxy: true
-            {{- end }}
-            {{- end }}
             {{- end }}
     api:
       namespaces:
@@ -89,15 +94,9 @@ cr:
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
-  ingressLabels:
-    {{- if .Values.istio.enabled }}
-    {{- $gateway := default "public" .Values.kiali.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
-    {{- end }}
-    {{- range $name, $values := .Values.istios }}
-    {{- $gateway := default "public" $.Values.kiali.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
-    {{- end -}}
+  {{ if $istioEnabled }}ingressLabels:
+    {{- $KialiGw := default "public" .Values.kiali.ingress.gateway }}
+    {{- $default := dict "app" (dig "gateways" $KialiGw "ingressGateway" nil $gateways) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $KialiGw "selector" $default $addlVals) | nindent 4 }}
+  {{- end }}
 {{- end -}}
