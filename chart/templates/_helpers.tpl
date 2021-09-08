@@ -144,3 +144,38 @@ bigbang.addValueIfSet can be used to nil check parameters before adding them to 
     {{- end }}
   {{- end }}
 {{- end -}}
+
+{{/*
+Check if Istio is enabled.
+*/}}
+{{- define "istioEnabled" -}}
+  {{- $istioEnabled := .Values.istio.enabled | default false }}
+  {{- range $name, $values := .Values.istios }}
+  {{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
+  {{- end -}}
+enabled: {{ $istioEnabled }}
+{{- end -}}
+
+{{/*
+Compose ingress gateway labels used for network policies.
+*/}}
+{{- define "ingressLabels" -}}
+  {{- $istioEnabled := .root.Values.istio.enabled | default false }}
+  {{- $gateways := dict }}
+  {{- $addlVals := dict }}
+  {{- if $istioEnabled }}
+    {{- $_ := set $gateways "gateways" .root.Values.istio.gateways }}
+    {{- $_ := set $addlVals "values" .root.Values.istio.values }}
+  {{- end -}}
+  {{- range $name, $values := .root.Values.istios }}
+    {{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
+  {{- end -}}
+  {{- if .root.Values.istiogateway.enabled }}
+    {{- $_ := set $gateways "gateways" .root.Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .root.Values.istiogateway.values }}
+  {{- end -}}
+  {{ if $istioEnabled }}ingressLabels:
+    {{- $appGw := default "public" .gateway }}
+    {{- $default := dict "app" (dig "gateways" $appGw "ingressGateway" nil $gateways) "istio" nil }}
+    {{- toYaml (dig "values" "gateways" $appGw "selector" $default $addlVals) | nindent 4 }}
+  {{- end -}}
+{{- end -}}

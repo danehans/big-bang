@@ -3,27 +3,12 @@
 {{- end }}
 
 {{- define "bigbang.defaults.kiali" -}}
-{{- $istioEnabled := .Values.istio.enabled | default false }}
-{{- $ingresses := dict }}
-{{- $gateways := dict }}
-{{- $addlVals := dict }}
-{{- if $istioEnabled }}
-{{- $_ := set $ingresses "ingressGateways" .Values.istio.ingressGateways }}
-{{- $_ := set $gateways "gateways" .Values.istio.gateways }}
-{{- $_ := set $addlVals "values" .Values.istio.values }}
-{{- end }}
-{{- range $name, $values := .Values.istios }}
-{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- $_ := set $ingresses "ingressGateways" $values.ingressGateways }}{{- end }}
-{{- end }}
-{{- if .Values.istiogateway.enabled }}
-{{- $_ := set $gateways "gateways" .Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}
-{{- end }}
 hostname: {{ .Values.hostname }}
 
 openshift: {{ .Values.openshift}}
 
 istio:
-  enabled: {{ $istioEnabled }}
+  {{ include "istioEnabled" . }}
   kiali:
     gateways:
     - istio-system/{{ default "public" .Values.kiali.ingress.gateway }}
@@ -77,16 +62,7 @@ cr:
             - app_label: istiod
               is_core: true
               is_proxy: false
-            {{- range $name, $values := $ingresses }}
-            - app_label: {{ $name }}
-              is_core: true
-              is_proxy: true
-            {{- end }}
-            {{- range $name, $values := $addlVals.ingressGateways }}
-            - app_label: {{ $name }}
-              is_core: true
-              is_proxy: true
-            {{- end }}
+            {{- include "istio.component.labels" . | indent 12 }}
     api:
       namespaces:
         # bigbang watches all!
@@ -94,9 +70,27 @@ cr:
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
-  {{ if $istioEnabled }}ingressLabels:
-    {{- $KialiGw := default "public" .Values.kiali.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $KialiGw "ingressGateway" nil $gateways) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $KialiGw "selector" $default $addlVals) | nindent 4 }}
-  {{- end }}
+  {{ include "ingressLabels" (dict "root" . "gateway" .Values.kiali.ingress.gateway) }}
+{{- end -}}
+
+{{- define "istio.component.labels" -}}
+{{- $ingresses := dict }}
+{{- $addlVals := dict }}
+{{- if .Values.istio.enabled }}
+  {{- $_ := set $ingresses "ingressGateways" .Values.istio.ingressGateways }}{{- $_ := set $addlVals "values" .Values.istio.values }}
+{{- end }}
+{{- range $name, $values := .Values.istios }}
+  {{- if $values.enabled }}{{- $_ := set $ingresses "ingressGateways" $values.ingressGateways }}{{- end }}
+{{- end }}
+{{- if .Values.istiogateway.enabled }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}{{- end }}
+{{- range $name, $values := $ingresses.ingressGateways }}
+- app_label: {{ $name }}
+  is_core: true
+  is_proxy: true
+{{- end }}
+{{- range $name, $values := $addlVals.ingressGateways }}
+- app_label: {{ $name }}
+  is_core: true
+  is_proxy: true
+{{- end }}
 {{- end -}}
