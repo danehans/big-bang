@@ -1,8 +1,13 @@
 {{- if .Values.istiogateway.enabled }}
 {{- $controlplane := "istio" }}
+{{- $found := false }}
 {{- range $name, $values := .Values.istios }}
-{{- if and (ne $name "default") ($values.enabled) }}{{ $controlplane = printf "%s-%s" $controlplane $name }}{{- end }}
+{{- if and (ne $name "default") ($values.enabled) (eq $found false) }}
+{{- $found = true }}
+{{ $controlplane = printf "%s-%s" $controlplane $name }}
 {{- end }}
+{{- end }}
+
 {{- $fluxSettingsIstioGw := .Values.flux -}}
 {{- if hasKey .Values.istiogateway "flux" }}{{- $fluxSettingsIstioGw = merge .Values.istiogateway.flux .Values.flux -}}{{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
