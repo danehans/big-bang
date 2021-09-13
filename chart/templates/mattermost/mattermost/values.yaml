@@ -3,18 +3,12 @@
 {{- end }}
 
 {{- define "bigbang.defaults.mattermost" -}}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
-{{- end }}
 hostname: {{ .Values.hostname }}
 
 openshift: {{ .Values.openshift }}
 
 istio:
-  enabled: {{ $istioEnabled }}
+  {{ include "istioEnabled" . }}
   chat:
     gateways:
     - istio-system/{{ default "public" .Values.addons.mattermost.ingress.gateway }}
@@ -34,17 +28,7 @@ sso:
 
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
-  ingressLabels:
-    {{- if .Values.istio.enabled }}
-    {{- $gateway := default "public" .Values.addons.mattermost.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
-    {{- end }}
-    {{- range $name, $values := .Values.istios }}
-    {{- $gateway := default "public" $.Values.addons.mattermost.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
-    {{- end -}}
+  {{ include "ingressLabels" (dict "root" . "gateway" .Values.addons.mattermost.ingress.gateway) }}
 
 global:
   imagePullSecrets:

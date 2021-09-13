@@ -1,8 +1,6 @@
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
 {{- $fluxSettingsHaProxy := merge .Values.addons.haproxy.flux .Values.flux -}}
 {{- if and $istioEnabled .Values.monitoring.sso.enabled }}
@@ -43,10 +41,7 @@ spec:
   {{- toYaml $fluxSettingsHaProxy | nindent 2 }}
 
   dependsOn:
-    {{- if $istioEnabled }}
-    - name: istio
-      namespace: {{ .Release.Namespace }}
-    {{- end }}
+    {{ include "istioDependsOn" . }}
     {{- if .Values.monitoring.enabled }}
     - name: monitoring
       namespace: {{ .Release.Namespace }}

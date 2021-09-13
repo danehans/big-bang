@@ -3,10 +3,6 @@
 {{- end }}
 
 {{- define "bigbang.defaults.gatekeeper" -}}
-{{- $istioEnabled := .Values.istio.enabled | default false }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
 image:
   pullSecrets:
   - name: private-registry
@@ -80,7 +76,8 @@ violations:  # Try to keep this in alpha order to make it easier to find keys
   {{- end }}
 
   namespacesHaveIstio:
-    enabled: {{ $istioEnabled }}
+    {{ include "istioEnabled" . }}
+
 
   {{- if .Values.logging.enabled }}
   noPrivilegedContainers:
@@ -91,7 +88,7 @@ violations:  # Try to keep this in alpha order to make it easier to find keys
   {{- end }}
 
   podsHaveIstio:
-    enabled: {{ $istioEnabled }}
+    {{ include "istioEnabled" . }}
     match:
       excludedNamespaces:
         # Istio does not inject sidecars in itself

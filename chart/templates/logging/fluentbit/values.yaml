@@ -3,12 +3,10 @@
 {{- end }}
 
 {{- define "bigbang.defaults.fluentbit" -}}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
-{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
+{{- end -}}
 elasticsearch:
   host: "logging-ek-es-http"
   password:
@@ -20,7 +18,6 @@ imagePullSecrets:
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
-
 
 istio:
   enabled: {{ $istioEnabled }}

@@ -1,58 +1,46 @@
 {{- $istioEnabled := .Values.istio.enabled | default false }}
-{{- $istioEnabled := .Values.istio.enabled | default false }}
-{{- $gateways := dict }}
-{{- $addlVals := dict }}
-{{- if $istioEnabled }}
-{{- $_ := set $gateways "gateways" .Values.istio.gateways }}
-{{- $_ := set $addlVals "values" .Values.istio.values }}
-{{- end }}
 {{- range $name, $values := .Values.istios }}
 {{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
-{{- if .Values.istiogateway.enabled }}
-{{- $_ := set $gateways "gateways" .Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}
-{{- end }}
 {{- if and $istioEnabled ( or .Values.addons.authservice.enabled .Values.monitoring.sso.enabled .Values.jaeger.sso.enabled ) }}
-{{- $defaults := include "bigbang.defaults.authservice" (dict "root" $ "istioEnabled" $istioEnabled "gateways" $gateways "addlVals" $addlVals) }}
-{{- include "values-secret" (dict "root" $ "package" .Values.addons.authservice "name" "authservice" "defaults" $defaults) }}
+{{- include "values-secret" (dict "root" $ "package" .Values.addons.authservice "name" "authservice" "defaults" (include "bigbang.defaults.authservice" .)) }}
 {{- end }}
 
 {{- define "bigbang.defaults.authservice" -}}
+# hostname is deprecated and replaced with domain. But if hostname exists then use it.
+{{- $domainName := default .Values.domain .Values.hostname }}
+
 imagePullSecrets:
   - name: private-registry
 
-openshift: {{ .root.Values.openshift }}
+openshift: {{ .Values.openshift }}
 
 networkPolicies:
-  enabled: {{ .root.Values.networkPolicies.enabled }}
-  {{ if .istioEnabled }}ingressLabels:
-    {{- $authGw := default "public" .root.Values.addons.haproxy.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $authGw "ingressGateway" nil .gateways) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $authGw "selector" $default .addlVals) | nindent 4 }}
-  {{- end }}
+  enabled: {{ .Values.networkPolicies.enabled }}
+  {{ include "ingressLabels" (dict "root" . "gateway" .Values.addons.haproxy.ingress.gateway) }}
 
 global:
   oidc:
-    host: {{ .root.Values.sso.oidc.host }}
-    realm: {{ .root.Values.sso.oidc.realm }}
+    host: {{ .Values.sso.oidc.host }}
+    realm: {{ .Values.sso.oidc.realm }}
 
-  {{- if .root.Values.sso.jwks }}
-  jwks: "{{ .root.Values.sso.jwks }}"
+  {{- if .Values.sso.jwks }}
+  jwks: "{{ .Values.sso.jwks }}"
   {{- end }}
 
-  {{- if .root.Values.sso.client_id}}
-  client_id: {{ .root.Values.sso.client_id }}
+  {{- if .Values.sso.client_id}}
+  client_id: {{ .Values.sso.client_id }}
   {{- end }}
 
-  {{- if .root.Values.sso.client_secret }}
-  client_secret: {{ .root.Values.sso.client_secret }}
+  {{- if .Values.sso.client_secret }}
+  client_secret: {{ .Values.sso.client_secret }}
   {{- end }}
 
-  {{- if .root.Values.sso.certificate_authority }}
-  certificate_authority: {{ .root.Values.sso.certificate_authority | quote }}
+  {{- if .Values.sso.certificate_authority }}
+  certificate_authority: {{ .Values.sso.certificate_authority | quote }}
   {{- end }}
 
-  {{- $authserviceValues := .root.Values.addons.authservice.values | default dict }}
+  {{- $authserviceValues := .Values.addons.authservice.values | default dict }}
   {{- $redisValues := $authserviceValues.redis | default dict }}
   {{- if hasKey $redisValues "enabled" }}
   {{- if $redisValues.enabled }}
@@ -61,57 +49,57 @@ global:
   {{- end }}
 
 chains:
-  {{- if .root.Values.addons.authservice.chains }}
-  {{ .root.Values.addons.authservice.chains | toYaml | nindent 2 }}
+  {{- if .Values.addons.authservice.chains }}
+  {{ .Values.addons.authservice.chains | toYaml | nindent 2 }}
   {{- end }}
 
-  {{- if .root.Values.jaeger.sso.enabled }}
+  {{- if .Values.jaeger.sso.enabled }}
   jaeger:
     match:
       header: ":authority"
-    {{- $jaegerValues := .root.Values.jaeger.values | default dict }}
+    {{- $jaegerValues := .Values.jaeger.values | default dict }}
     {{- $jaegerIstioValues := $jaegerValues.istio | default dict }}
     {{- $jaegerHostValues := $jaegerIstioValues.jaeger | default dict}}
     {{- if hasKey $jaegerHostValues "hosts" }}
-      prefix: {{ range .root.Values.jaeger.values.istio.jaeger.hosts }}{{ tpl . $}}{{ end }}
-    callback_uri: https://{{ range .root.Values.jaeger.values.istio.jaeger.hosts }}{{ tpl . $}}{{ end }}/login
+      prefix: {{ range .Values.jaeger.values.istio.jaeger.hosts }}{{ tpl . $}}{{ end }}
+    callback_uri: https://{{ range .Values.jaeger.values.istio.jaeger.hosts }}{{ tpl . $}}{{ end }}/login
     {{- else }}
       prefix: "tracing"
-    callback_uri: https://tracing.{{ .root.Values.hostname }}/login
+    callback_uri: https://tracing.{{ $domainName }}/login
     {{- end }}
-    client_id: "{{ .root.Values.jaeger.sso.client_id }}"
-    client_secret: "{{ .root.Values.jaeger.sso.client_secret }}"
+    client_id: "{{ .Values.jaeger.sso.client_id }}"
+    client_secret: "{{ .Values.jaeger.sso.client_secret }}"
   {{- end }}
 
-  {{- if .root.Values.monitoring.sso.enabled }}
+  {{- if .Values.monitoring.sso.enabled }}
   prometheus:
     match:
       header: ":authority"
-    {{- $monitoringValues := .root.Values.monitoring.values | default dict }}
+    {{- $monitoringValues := .Values.monitoring.values | default dict }}
     {{- $monitoringIstioValues := $monitoringValues.istio | default dict }}
     {{- $prometheusHostValues := $monitoringIstioValues.prometheus | default dict}}
     {{- if hasKey $prometheusHostValues "hosts" }}
-      prefix: {{ range .root.Values.monitoring.values.istio.prometheus.hosts }}{{ tpl . $}}{{ end }}
-    callback_uri: https://{{ range .root.Values.monitoring.values.istio.prometheus.hosts }}{{ tpl . $}}{{ end }}/login/generic_oauth
+      prefix: {{ range .Values.monitoring.values.istio.prometheus.hosts }}{{ tpl . $}}{{ end }}
+    callback_uri: https://{{ range .Values.monitoring.values.istio.prometheus.hosts }}{{ tpl . $}}{{ end }}/login/generic_oauth
     {{- else }}
       prefix: "prometheus"
-    callback_uri: https://prometheus.{{ .root.Values.hostname }}/login/generic_oauth
+    callback_uri: https://prometheus.{{ $domainName }}/login/generic_oauth
     {{- end }}
-    client_id: {{ .root.Values.monitoring.sso.prometheus.client_id }}
-    client_secret: "{{ .root.Values.monitoring.sso.prometheus.client_secret }}"
+    client_id: {{ .Values.monitoring.sso.prometheus.client_id }}
+    client_secret: "{{ .Values.monitoring.sso.prometheus.client_secret }}"
 
   alertmanager:
     match:
       header: ":authority"
     {{- $alertmanagerHostValues := $monitoringIstioValues.alertmanager | default dict}}
     {{- if hasKey $alertmanagerHostValues "hosts" }}
-      prefix: {{ range .root.Values.monitoring.values.istio.alertmanager.hosts }}{{ tpl . $}}{{ end }}
-    callback_uri: https://{{ range .root.Values.monitoring.values.istio.alertmanager.hosts }}{{ tpl . $}}{{ end }}/login/generic_oauth
+      prefix: {{ range .Values.monitoring.values.istio.alertmanager.hosts }}{{ tpl . $}}{{ end }}
+    callback_uri: https://{{ range .Values.monitoring.values.istio.alertmanager.hosts }}{{ tpl . $}}{{ end }}/login/generic_oauth
     {{- else }}
       prefix: "alertmanager"
-    callback_uri: https://alertmanager.{{ .root.Values.hostname }}/login/generic_oauth
+    callback_uri: https://alertmanager.{{ $domainName }}/login/generic_oauth
     {{- end }}
-    client_id: {{ .root.Values.monitoring.sso.alertmanager.client_id }}
-    client_secret: "{{ .root.Values.monitoring.sso.alertmanager.client_secret }}"
+    client_id: {{ .Values.monitoring.sso.alertmanager.client_id }}
+    client_secret: "{{ .Values.monitoring.sso.alertmanager.client_secret }}"
   {{- end }}
 {{- end -}}

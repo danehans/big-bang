@@ -1,5 +1,9 @@
 {{- $fluxSettingsVelero := merge .Values.addons.velero.flux .Values.flux -}}
 {{- if .Values.addons.velero.enabled }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
+{{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
 metadata:
@@ -38,7 +42,6 @@ spec:
       valuesKey: "overlays"
   {{- if .Values.istio.enabled }}
   dependsOn:
-    - name: istio
-      namespace: {{ .Release.Namespace }}
+    {{ include "istioDependsOn" . }}
   {{- end }}
 {{- end }}

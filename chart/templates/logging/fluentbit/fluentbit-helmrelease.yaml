@@ -1,10 +1,8 @@
 {{- $fluxSettingsFluentbit := merge .Values.fluentbit.flux .Values.flux -}}
 {{- if .Values.fluentbit.enabled }}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1
 kind: HelmRelease
@@ -51,10 +49,7 @@ spec:
     - name: gatekeeper
       namespace: {{ .Release.Namespace }}
     {{- end }}
-    {{- if $istioEnabled }}
-    - name: istio
-      namespace: {{ .Release.Namespace }}
-    {{- end }}
+    {{- if $istioEnabled }}{{ include "istioDependsOn" . }}{{- end }}
     {{- if .Values.monitoring.enabled }}
     - name: monitoring
       namespace: {{ .Release.Namespace }}

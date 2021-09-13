@@ -3,11 +3,9 @@
 {{- end }}
 
 {{- define "bigbang.defaults.monitoring" -}}
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
 hostname: {{ .Values.hostname }}
 
@@ -16,17 +14,7 @@ flux:
 
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
-  ingressLabels:
-    {{- if .Values.istio.enabled }}
-    {{- $gateway := default "public" .Values.monitoring.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
-    {{- end }}
-    {{- range $name, $values := .Values.istios }}
-    {{- $gateway := default "public" $.Values.monitoring.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil $values) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default $values) | nindent 4 }}
-    {{- end -}}
+  {{ include "ingressLabels" (dict "root" . "gateway" .Values.monitoring.ingress.gateway) }}
 
 minioOperator:
   enabled: {{ .Values.addons.minioOperator.enabled }}

@@ -179,3 +179,19 @@ Compose ingress gateway labels used for network policies.
     {{- toYaml (dig "values" "gateways" $appGw "selector" $default $addlVals) | nindent 4 }}
   {{- end -}}
 {{- end -}}
+
+{{/*
+Compose HelmRepository dependsOn for Istio.
+*/}}
+{{- define "istioDependsOn" -}}
+  {{- $controlplane := "istio" }}
+  {{- $found := false }}
+  {{- range $name, $values := .Values.istios }}
+    {{- if and (ne $name "default") ($values.enabled) (not $found) }}
+      {{- $found = true }}
+      {{- $controlplane = printf "%s-%s" $controlplane $name }}
+    {{- end }}
+  {{- end }}
+    - name: {{ $controlplane }}
+      namespace: {{ .Release.Namespace }}
+{{- end -}}

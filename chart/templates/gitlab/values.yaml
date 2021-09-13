@@ -3,25 +3,12 @@
 {{- end }}
 
 {{- define "bigbang.defaults.gitlab" -}}
-{{- $istioEnabled := .Values.istio.enabled | default false }}
-{{- $gateways := dict }}
-{{- $addlVals := dict }}
-{{- if $istioEnabled }}
-{{- $_ := set $gateways "gateways" .Values.istio.gateways }}
-{{- $_ := set $addlVals "values" .Values.istio.values }}
-{{- end }}
-{{- range $name, $values := .Values.istios }}
-{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
-{{- if .Values.istiogateway.enabled }}
-{{- $_ := set $gateways "gateways" .Values.istiogateway.instances }}{{- $_ := set $addlVals "values" .Values.istiogateway.values }}
-{{- end -}}
 hostname: {{ .Values.hostname }}
 
 openshift: {{ .Values.openshift }}
 
 istio:
-  enabled: {{ $istioEnabled }}
+  {{ include "istioEnabled" . }}
   gitlab:
     gateways:
     - istio-system/{{ default "public" .Values.addons.gitlab.ingress.gateway }}
@@ -34,11 +21,7 @@ monitoring:
 
 networkPolicies:
   enabled: {{ .Values.networkPolicies.enabled }}
-    {{- if $istioEnabled }}ingressLabels:
-    {{- $gateway := default "public" .Values.addons.gitlab.ingress.gateway }}
-    {{- $default := dict "app" (dig "gateways" $gateway "ingressGateway" nil .Values.istio) "istio" nil }}
-    {{- toYaml (dig "values" "gateways" $gateway "selector" $default .Values.istio) | nindent 4 }}
-    {{- end }}
+  {{ include "ingressLabels" (dict "root" . "gateway" .Values.addons.gitlab.ingress.gateway) }}
   controlPlaneCidr: {{ .Values.networkPolicies.controlPlaneCidr }}
 
 {{- if .Values.addons.gitlab.database.host }}

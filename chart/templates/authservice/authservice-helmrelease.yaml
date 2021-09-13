@@ -1,8 +1,6 @@
-{{ $istioEnabled := false }}
-{{- if .Values.istio.enabled }}{{ $istioEnabled = true }}{{- else }}
-{{- range $values := .Values.istios }}
-{{ if and ($values.enabled) (eq $istioEnabled false) }}{{ $istioEnabled = true }}{{- end }}
-{{- end }}
+{{- $istioEnabled := .Values.istio.enabled | default false }}
+{{- range $name, $values := .Values.istios }}
+{{- if and $values.enabled (not $istioEnabled) }}{{ $istioEnabled = true }}{{- end }}
 {{- end }}
 {{- $fluxSettingsAuthservice := merge .Values.addons.authservice.flux .Values.flux -}}
 {{- if and $istioEnabled ( or .Values.addons.authservice.enabled .Values.monitoring.sso.enabled .Values.jaeger.sso.enabled ) }}
@@ -44,9 +42,6 @@ spec:
       kind: Secret
       valuesKey: "overlays"
 
-  {{- if $istioEnabled }}
   dependsOn:
-  - name: istio
-    namespace: {{ .Release.Namespace }}
-  {{- end }}
+  {{- include "istioDependsOn" . }}
 {{- end }}
