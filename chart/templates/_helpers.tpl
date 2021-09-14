@@ -195,3 +195,33 @@ Compose HelmRepository dependsOn for Istio.
     - name: {{ $controlplane }}
       namespace: {{ .Release.Namespace }}
 {{- end -}}
+
+{{/*
+Set Istio sidecar injection namespace label.
+*/}}
+{{- define "istioInjectionLabel" -}}
+  {{- $version := "0" }}
+  {{- range $name, $values := .Values.istios }}
+    {{- if and ($values.enabled) (hasKey $values "revision") }}
+      {{- $dotRev := $values.revision | replace "-" "." }}
+      {{- if eq 1 (semver $version | (semver $dotRev).Compare) }}
+        {{- $version = $dotRev }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- if and .Values.istio.enabled }}
+    {{- if hasKey .Values.istio "revision" }}
+      {{- $dotRev := .Values.istio.revision | replace "-" "." }}
+      {{- if eq 1 (semver $version | (semver $dotRev).Compare) }}
+        {{- $version = $dotRev }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+
+  {{- if eq $version "0" }}
+istio-injection: enabled
+  {{- else }}
+istio.io/rev: {{ $version | replace "." "-"  }}
+  {{- end }}
+{{- end -}}
