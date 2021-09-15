@@ -17,7 +17,9 @@
 
 {{- define "bigbang.defaults.istio" -}}
 hostname: {{ .Values.hostname }}
-
+{{ if hasKey .Values.istio "revision" }}
+revision: {{ .Values.istio.revision }}
+{{ end }}
 tracing:
   enabled:  {{ .Values.jaeger.enabled }}
 
