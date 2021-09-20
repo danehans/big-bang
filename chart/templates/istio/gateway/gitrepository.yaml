@@ -1,9 +1,9 @@
-{{- $enabled := .Values.istio.enabled | default false }}
-{{- range $name, $values := .Values.istio.controlplanes }}
-{{- if and $values.enabled (not $enabled) }}{{ $enabled = true }}{{- end }}
+{{ $enabled := false }}
+{{- range $values := .Values.istio.controlplanes }}
+{{ if and ($values.enabled) (eq $enabled false) }}{{ $enabled = true }}{{- end }}
 {{- end }}
 
-{{- if and $enabled (hasKey .Values.istio "gateways") (not .Values.offline) }}
+{{- if and $enabled (not .Values.istio.enabled) (hasKey .Values.istio "gateways") (not .Values.offline) }}
 apiVersion: source.toolkit.fluxcd.io/v1beta1
 kind: GitRepository
 metadata:

@@ -134,10 +134,14 @@ istio:
     #   # Node port will be assigned as follows: Port 15021 (Status) = nodePortBase, Port 80 = nodePortBase+1, Port 443 = nodePortBase+2, Port 15443 (SNI) = nodePortBase+3
     #   # Node port base should be in the range from 30000 to 32764
     #   nodePortBase: 32000  # Alternatively, the kubernetesResourceSpec can be used to configure all port parameters
+
+  # TODO: Update reference when the istio-gateway repo1 repo is created.
   gatewayGit:
-    repo: https://repo1.dso.mil/platform-one/big-bang/apps/core/istio-gateway.git
+    repo: https://github.com/danehans/istio-gateway.git
     path: "./chart"
-    tag: "1.10.4-bb.0"
+    tag: null
+    branch: main
+
   gateways:
     public:
       ingressGateway: "public-ingressgateway"

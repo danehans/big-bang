@@ -1,10 +1,11 @@
 {{- $controlplane := "istio" }}
-{{- $enabled := .Values.istio.enabled | default false }}
+{{- $enabled := false }}
 {{- range $name, $values := .Values.istio.controlplanes }}
-{{- if and $values.enabled (not $enabled) }}{{ $enabled = true }}{{ $controlplane = printf "%s-%s" $controlplane $name }}{{- end }}
+{{- if and $values.enabled (not $enabled) }}{{ $enabled = true }}{{- end }}
+{{- if and $enabled (ne $name "default") (ne $name "deprecated") }}{{- $controlplane = printf "%s-%s" $controlplane $name }}{{- end }}
 {{- end }}
 
-{{- if $enabled }}
+{{- if and $enabled (not .Values.istio.enabled) }}
 {{- $fluxSettingsIstioGw := .Values.flux -}}
 {{- if hasKey .Values.istio "flux" }}{{- $fluxSettingsIstioGw = merge .Values.istio.flux .Values.flux -}}{{- end }}
 apiVersion: helm.toolkit.fluxcd.io/v2beta1

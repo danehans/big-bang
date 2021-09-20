@@ -17,9 +17,10 @@ Create the values secret for enabled control planes.
 */}}
 {{- if $values.enabled }}
 ---
-{{- if or (eq $name "default") (eq $name "deprecated") }}{{- $name = "istio" }}{{- else }}{{- $name = printf "istio-%s" $name }}{{- end }}
+{{- $secretName := "istio" }}
+{{- if and (ne $name "default") (ne $name "deprecated") }}{{- $secretName = printf "istio-%s" $name }}{{- end }}
 {{- $defaults := include "bigbang.defaults.istio" (dict "root" $ "name" $name "package" $values) }}
-{{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
+{{- include "values-secret" (dict "root" $ "package" $values "name" $secretName "defaults" $defaults) }}
 {{- end }}
 {{- end }}
 
@@ -63,7 +64,7 @@ ingressGateways:
 gateways:
   main: null
 {{- end }}
-{{- if .root.Values.istio.enabled }}
+{{- if and .root.Values.istio.enabled (eq .name "deprecated") }}
 {{- range $name, $values := .root.Values.istio.gateways }}
   {{ $name | nindent 2 }}:
     selector:
