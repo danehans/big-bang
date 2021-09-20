@@ -1,15 +1,17 @@
-{{ $enabled := .Values.istio.enabled | default false }}
+{{ $enabled := false }}
 {{- range $values := .Values.istio.controlplanes }}
 {{ if and ($values.enabled) (eq $enabled false) }}{{ $enabled = true }}{{- end }}
 {{- end }}
 
-{{- if and $enabled .Values.istio.gateways }}
+{{- if and $enabled (not .Values.istio.enabled) }}
 {{- include "values-secret" (dict "root" $ "package" .Values.istio.gateways "name" "istio-gateway" "defaults" (include "bigbang.defaults.gateway" .)) }}
 {{- end }}
 
 {{- define "bigbang.defaults.gateway" -}}
+{{- if .Values.istio.gateways }}
 gateways:
   main: null
+{{- end }}
 {{- range $name, $values := .Values.istio.gateways }}
   {{ $name | nindent 2 }}:
     selector:

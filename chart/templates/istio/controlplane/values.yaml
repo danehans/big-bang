@@ -18,7 +18,7 @@ Create the values secret for enabled control planes.
 {{- if $values.enabled }}
 ---
 {{- if or (eq $name "default") (eq $name "deprecated") }}{{- $name = "istio" }}{{- else }}{{- $name = printf "istio-%s" $name }}{{- end }}
-{{- $defaults := include "bigbang.defaults.istio" (dict "root" $ "package" $values) }}
+{{- $defaults := include "bigbang.defaults.istio" (dict "root" $ "name" $name "package" $values) }}
 {{- include "values-secret" (dict "root" $ "package" $values "name" $name "defaults" $defaults) }}
 {{- end }}
 {{- end }}
@@ -57,6 +57,28 @@ ingressGateways:
 {{- range $name, $values := .package.ingressGateways }}
   {{ $name | nindent 2 }}:
     {{- toYaml (merge (dict "k8s" $values.kubernetesResourceSpec) (fromYaml (include "istio.ingressgateway.k8s" $values))) | nindent 4 }}
+{{- end }}
+
+{{- if .root.Values.istio.gateways }}
+gateways:
+  main: null
+{{- end }}
+{{- if .root.Values.istio.enabled }}
+{{- range $name, $values := .root.Values.istio.gateways }}
+  {{ $name | nindent 2 }}:
+    selector:
+      app: {{ $values.ingressGateway }}
+    servers:
+    - hosts:
+      {{ tpl ($values.hosts | default (list) | toYaml) $.root | nindent 8 }}
+      port:
+        name: https
+        number: 8443
+        protocol: HTTPS
+      tls:
+        credentialName: {{ $name }}-cert
+        mode: {{ dig "tls" "mode" "SIMPLE" $values }}
+{{- end }}
 {{- end }}
 {{- end }}
 
