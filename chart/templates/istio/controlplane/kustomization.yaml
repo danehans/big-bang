@@ -1,0 +1,37 @@
+{{- $controlplanes := dict "deprecated" .Values.istio }}
+{{- range $name, $values := .Values.istio.controlplanes }}{{- $_ := set $controlplanes $name $values }}{{- end }}
+{{- range $name, $values := $controlplanes }}
+{{- if $values.enabled }}
+---
+{{- $deployName := "istiod" }}
+{{- $repoName := "istio-controlplane" }}
+{{- if or (eq $name "default") (eq $name "deprecated") }}{{- $name = "istio" }}{{- else }}
+{{- $repoName = printf "%s-%s" $repoName $name }}
+{{- $deployName = printf "%s-%s" $deployName $name }}
+{{- end }}
+{{- $fluxSettingsIstioCp := $.Values.flux -}}
+{{- if hasKey $values "flux" }}{{- $fluxSettingsIstioCp = merge $.Values.flux $values.flux -}}{{- end }}
+apiVersion: kustomize.toolkit.fluxcd.io/v1beta1
+kind: Kustomization
+metadata:
+  name: {{ $repoName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: istio-controlplane
+    app.kubernetes.io/component: "core"
+    {{- include "commonLabels" $ | nindent 4}}
+spec:
+  interval: {{ $.Values.flux.interval }}
+  sourceRef:
+    kind: GitRepository
+    name: {{ $repoName }}
+  path: ./chart/templates
+  prune: true
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: {{ $deployName }}
+      namespace: istio-system
+  timeout: {{ $.Values.flux.timeout }}
+{{- end }}
+{{- end }}
